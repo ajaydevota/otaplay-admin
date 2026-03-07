@@ -1,1 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>OtaPlay Admin</title>
+<style>
+body{font-family:Arial;background:#121212;color:white;padding:20px;}
+input,button{padding:10px;margin:5px;width:100%;border-radius:8px;border:none;font-size:16px;}
+button{background:#1DB954;color:white;cursor:pointer;}
+.song{background:#1e1e1e;padding:10px;margin:5px;border-radius:8px;}
+</style>
+</head>
+<body>
+<h1>🎵 OtaPlay Admin</h1>
+<input id="title" placeholder="Gane ka naam"/>
+<input id="url" placeholder="Cloudinary URL"/>
+<button onclick="addSong()">➕ Gana Add Karo</button>
+<h2>Songs List:</h2>
+<div id="list"></div>
+<br>
+<button onclick="saveJSON()">💾 JSON Save Karo</button>
+<pre id="json"></pre>
 
+<script>
+let songs = JSON.parse(localStorage.getItem('songs') || '[]');
+render();
+
+function addSong(){
+  const title = document.getElementById('title').value;
+  const url = document.getElementById('url').value;
+  if(!title || !url){alert('Dono fields bharo!');return;}
+  songs.push({title,audiourl:url});
+  localStorage.setItem('songs',JSON.stringify(songs));
+  document.getElementById('title').value='';
+  document.getElementById('url').value='';
+  render();
+}
+
+function deleteSong(i){
+  songs.splice(i,1);
+  localStorage.setItem('songs',JSON.stringify(songs));
+  render();
+}
+
+function render(){
+  const list = document.getElementById('list');
+  list.innerHTML = songs.map((s,i)=>
+    `<div class="song">▶ ${s.title}<br><small>${s.audiourl}</small><br>
+    <button onclick="deleteSong(${i})" style="background:red;width:auto;">🗑 Delete</button></div>`
+  ).join('');
+}
+
+function saveJSON(){
+  const json = JSON.stringify(songs, null, 2);
+  document.getElementById('json').textContent = json;
+  navigator.clipboard.writeText(json).then(()=>alert('JSON copy ho gaya!'));
+}
+</script>
+</body>
+</html>
