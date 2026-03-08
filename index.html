@@ -4,56 +4,120 @@
 <title>OtaPlay Admin</title>
 <style>
 body{font-family:Arial;background:#121212;color:white;padding:20px;}
-input,button{padding:10px;margin:5px;width:100%;border-radius:8px;border:none;font-size:16px;}
-button{background:#1DB954;color:white;cursor:pointer;}
+input,button{padding:10px;margin:5px;width:100%;border-radius:8px;border:none;font-size:16px;box-sizing:border-box;}
+button{background:#1DB954;color:white;cursor:pointer;font-weight:bold;}
+button:disabled{background:#555;}
 .song{background:#1e1e1e;padding:10px;margin:5px;border-radius:8px;}
+.msg{padding:10px;border-radius:8px;margin:10px 0;}
+.success{background:#1DB954;}
+.error{background:#e74c3c;}
 </style>
 </head>
 <body>
 <h1>🎵 OtaPlay Admin</h1>
 <input id="title" placeholder="Gane ka naam"/>
 <input id="url" placeholder="Cloudinary URL"/>
-<button onclick="addSong()">➕ Gana Add Karo</button>
+<button onclick="addSong()" id="addBtn">➕ Gana Add Karo</button>
+<div id="msg"></div>
 <h2>Songs List:</h2>
 <div id="list"></div>
-<br>
-<button onclick="saveJSON()">💾 JSON Save Karo</button>
-<pre id="json"></pre>
 
 <script>
-let songs = JSON.parse(localStorage.getItem('songs') || '[]');
-render();
+const GITHUB_TOKEN = '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';
+const REPO = 'ajaydevota/otaplay-admin';
+const FILE = 'songs.json';
+let songs = [];
+let fileSha = '';
 
-function addSong(){
-  const title = document.getElementById('title').value;
-  const url = document.getElementById('url').value;
-  if(!title || !url){alert('Dono fields bharo!');return;}
-  songs.push({title,audiourl:url});
-  localStorage.setItem('songs',JSON.stringify(songs));
-  document.getElementById('title').value='';
-  document.getElementById('url').value='';
-  render();
+async function loadSongs() {
+    try {
+        const res = await fetch(`https://api.github.com/repos/${REPO}/contents/${FILE}`, {
+            headers: {'Authorization': `token ${GITHUB_TOKEN}`}
+        });
+        const data = await res.json();
+        fileSha = data.sha;
+        songs = JSON.parse(atob(data.content));
+        render();
+    } catch(e) {
+        showMsg('Songs load nahi hui: ' + e.message, 'error');
+    }
 }
 
-function deleteSong(i){
-  songs.splice(i,1);
-  localStorage.setItem('songs',JSON.stringify(songs));
-  render();
+async function saveToGitHub() {
+    const content = btoa(unescape(encodeURIComponent(JSON.stringify(songs, null, 2))));
+    const res = await fetch(`https://api.github.com/repos/${REPO}/contents/${FILE}`, {
+        method: 'PUT',
+        headers: {
+            'Authorization': `token ${GITHUB_TOKEN}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            message: 'Songs update kiya',
+            content: content,
+            sha: fileSha
+        })
+    });
+    const data = await res.json();
+    fileSha = data.content.sha;
 }
 
-function render(){
-  const list = document.getElementById('list');
-  list.innerHTML = songs.map((s,i)=>
-    `<div class="song">▶ ${s.title}<br><small>${s.audiourl}</small><br>
-    <button onclick="deleteSong(${i})" style="background:red;width:auto;">🗑 Delete</button></div>`
-  ).join('');
+async function addSong() {
+    const title = document.getElementById('title').value.trim();
+    const url = document.getElementById('url').value.trim();
+    if(!title || !url) {alert('Dono fields bharo!'); return;}
+    
+    const btn = document.getElementById('addBtn');
+    btn.disabled = true;
+    btn.textContent = 'Save ho raha hai...';
+    
+    try {
+        songs.push({title, audiourl: url});
+        await saveToGitHub();
+        document.getElementById('title').value = '';
+        document.getElementById('url').value = '';
+        render();
+        showMsg('✅ Gana add ho gaya!', 'success');
+    } catch(e) {
+        songs.pop();
+        showMsg('❌ Error: ' + e.message, 'error');
+    }
+    
+    btn.disabled = false;
+    btn.textContent = '➕ Gana Add Karo';
 }
 
-function saveJSON(){
-  const json = JSON.stringify(songs, null, 2);
-  document.getElementById('json').textContent = json;
-  navigator.clipboard.writeText(json).then(()=>alert('JSON copy ho gaya!'));
+async function deleteSong(i) {
+    if(!confirm('Delete karna hai?')) return;
+    songs.splice(i, 1);
+    try {
+        await saveToGitHub();
+        render();
+        showMsg('✅ Gana delete ho gaya!', 'success');
+    } catch(e) {
+        showMsg('❌ Error: ' + e.message, 'error');
+    }
 }
+
+function render() {
+    document.getElementById('list').innerHTML = songs.length === 0 
+        ? '<p>Koi gana nahi hai</p>'
+        : songs.map((s,i) => `
+            <div class="song">
+                ▶ <b>${s.title}</b><br>
+                <small>${s.audiourl}</small><br>
+                <button onclick="deleteSong(${i})" style="background:red;width:auto;margin-top:5px;">🗑 Delete</button>
+            </div>`
+        ).join('');
+}
+
+function showMsg(msg, type) {
+    const el = document.getElementById('msg');
+    el.className = 'msg ' + type;
+    el.textContent = msg;
+    setTimeout(() => el.textContent = '', 3000);
+}
+
+loadSongs();
 </script>
 </body>
 </html>
