@@ -3,15 +3,22 @@
 <head>
 <title>OtaPlay Admin</title>
 <style>
-body{font-family:Arial;background:#121212;color:white;padding:20px;}
-input,button{padding:10px;margin:5px;width:100%;border-radius:8px;border:none;font-size:16px;box-sizing:border-box;}
+*{box-sizing:border-box;}
+body{font-family:Arial;background:#121212;color:white;padding:20px;margin:0;}
+input,select,button{padding:10px;margin:5px 0;width:100%;border-radius:8px;border:none;font-size:15px;}
+input,select{background:#2a2a2a;color:white;}
 button{background:#1DB954;color:white;cursor:pointer;font-weight:bold;}
 button:disabled{background:#555;}
-.song{background:#1e1e1e;padding:10px;margin:5px;border-radius:8px;}
-.msg{padding:10px;border-radius:8px;margin:10px 0;text-align:center;}
-.success{background:#1DB954;}
+.song{background:#1e1e1e;padding:12px;margin:8px 0;border-radius:10px;}
+.song img{width:50px;height:50px;border-radius:6px;object-fit:cover;vertical-align:middle;margin-right:10px;}
+.playlist-tag{background:#1DB954;color:black;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:bold;}
+.msg{padding:10px;border-radius:8px;margin:10px 0;text-align:center;font-weight:bold;}
+.success{background:#1DB954;color:black;}
 .error{background:#e74c3c;}
 #loginBox{background:#1e1e1e;padding:20px;border-radius:12px;margin-top:20px;}
+h2{color:#1DB954;border-bottom:1px solid #2a2a2a;padding-bottom:8px;}
+.filter-btn{width:auto;padding:6px 14px;margin:4px;background:#2a2a2a;border-radius:20px;font-size:13px;}
+.filter-btn.active{background:#1DB954;color:black;}
 </style>
 </head>
 <body>
@@ -24,12 +31,19 @@ button:disabled{background:#555;}
 </div>
 
 <div id="mainPanel" style="display:none">
-  <button onclick="logout()" style="background:#333;width:auto;margin-bottom:10px;">🚪 Logout</button>
-  <input id="title" placeholder="Gane ka naam"/>
-  <input id="url" placeholder="Cloudinary URL"/>
+  <button onclick="logout()" style="background:#333;margin-bottom:15px;">🚪 Logout</button>
+
+  <h2>➕ Naya Gana Add Karo</h2>
+  <input id="title" placeholder="🎵 Gane ka naam *"/>
+  <input id="audiourl" placeholder="🔊 Audio URL (Cloudinary MP3) *"/>
+  <input id="imageurl" placeholder="🖼️ Image URL (Internet se) *"/>
+  <input id="playlist" placeholder="📁 Playlist naam (jaise: Desi Hits) *" list="playlistSuggestions"/>
+  <datalist id="playlistSuggestions"></datalist>
   <button onclick="addSong()" id="addBtn">➕ Gana Add Karo</button>
   <div id="msg"></div>
-  <h2>Songs List:</h2>
+
+  <h2>📋 Songs List</h2>
+  <div id="filterBtns" style="margin-bottom:10px;"></div>
   <div id="list"></div>
 </div>
 
@@ -39,6 +53,7 @@ const FILE = 'songs.json';
 let songs = [];
 let fileSha = '';
 let GITHUB_TOKEN = '';
+let activeFilter = 'All';
 
 function saveToken() {
     const t = document.getElementById('tokenInput').value.trim();
@@ -95,16 +110,25 @@ async function saveToGitHub() {
 
 async function addSong() {
     const title = document.getElementById('title').value.trim();
-    const url = document.getElementById('url').value.trim();
-    if(!title || !url){alert('Dono fields bharo!');return;}
+    const audiourl = document.getElementById('audiourl').value.trim();
+    const imageurl = document.getElementById('imageurl').value.trim();
+    const playlist = document.getElementById('playlist').value.trim();
+
+    if(!title || !audiourl || !imageurl || !playlist){
+        alert('Sab fields bharo!'); return;
+    }
+
     const btn = document.getElementById('addBtn');
     btn.disabled = true;
     btn.textContent = 'Save ho raha hai...';
+
     try {
-        songs.push({title, audiourl: url});
+        songs.push({title, audiourl, imageurl, playlist});
         await saveToGitHub();
         document.getElementById('title').value = '';
-        document.getElementById('url').value = '';
+        document.getElementById('audiourl').value = '';
+        document.getElementById('imageurl').value = '';
+        document.getElementById('playlist').value = '';
         render();
         showMsg('✅ Gana add ho gaya!', 'success');
     } catch(e) {
@@ -117,26 +141,59 @@ async function addSong() {
 
 async function deleteSong(i) {
     if(!confirm('Delete karna hai?')) return;
-    songs.splice(i, 1);
+    const removed = songs.splice(i, 1);
     try {
         await saveToGitHub();
         render();
-        showMsg('✅ Gana delete ho gaya!', 'success');
+        showMsg('✅ Delete ho gaya!', 'success');
     } catch(e) {
+        songs.splice(i, 0, removed[0]);
         showMsg('❌ Error: ' + e.message, 'error');
     }
 }
 
+function getPlaylists() {
+    return ['All', ...new Set(songs.map(s => s.playlist).filter(Boolean))];
+}
+
 function render() {
-    document.getElementById('list').innerHTML = songs.length === 0
-        ? '<p>Koi gana nahi hai</p>'
-        : songs.map((s,i) => `
-            <div class="song">
-                ▶ <b>${s.title}</b><br>
-                <small>${s.audiourl}</small><br>
-                <button onclick="deleteSong(${i})" style="background:red;width:auto;margin-top:5px;">🗑 Delete</button>
-            </div>`
-        ).join('');
+    // Playlist suggestions
+    const playlists = getPlaylists().filter(p => p !== 'All');
+    const dl = document.getElementById('playlistSuggestions');
+    dl.innerHTML = playlists.map(p => `<option value="${p}">`).join('');
+
+    // Filter buttons
+    const filterDiv = document.getElementById('filterBtns');
+    filterDiv.innerHTML = getPlaylists().map(p =>
+        `<button class="filter-btn ${p === activeFilter ? 'active' : ''}" onclick="setFilter('${p}')">${p}</button>`
+    ).join('');
+
+    // Songs list
+    const filtered = activeFilter === 'All' ? songs : songs.filter(s => s.playlist === activeFilter);
+    const list = document.getElementById('list');
+
+    if(filtered.length === 0){
+        list.innerHTML = '<p style="color:#666">Koi gana nahi hai</p>';
+        return;
+    }
+
+    list.innerHTML = filtered.map((s, i) => {
+        const realIndex = songs.indexOf(s);
+        return `
+        <div class="song">
+            <img src="${s.imageurl}" onerror="this.src='https://via.placeholder.com/50x50/1DB954/000?text=🎵'" />
+            <span class="playlist-tag">${s.playlist || 'No Playlist'}</span>
+            <br><br>
+            <b>${s.title}</b><br>
+            <small style="color:#888;word-break:break-all;">${s.audiourl.substring(0,50)}...</small><br>
+            <button onclick="deleteSong(${realIndex})" style="background:red;width:auto;margin-top:8px;">🗑 Delete</button>
+        </div>`;
+    }).join('');
+}
+
+function setFilter(name) {
+    activeFilter = name;
+    render();
 }
 
 function showMsg(msg, type) {
@@ -146,7 +203,6 @@ function showMsg(msg, type) {
     setTimeout(() => el.textContent = '', 3000);
 }
 
-// Auto login if token saved
 const saved = localStorage.getItem('ota_token');
 if(saved){GITHUB_TOKEN = saved; showPanel();}
 </script>
