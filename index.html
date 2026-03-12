@@ -1,210 +1,307 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>OtaPlay Admin</title>
 <style>
-*{box-sizing:border-box;}
-body{font-family:Arial;background:#121212;color:white;padding:20px;margin:0;}
-input,select,button{padding:10px;margin:5px 0;width:100%;border-radius:8px;border:none;font-size:15px;}
-input,select{background:#2a2a2a;color:white;}
-button{background:#1DB954;color:white;cursor:pointer;font-weight:bold;}
-button:disabled{background:#555;}
-.song{background:#1e1e1e;padding:12px;margin:8px 0;border-radius:10px;}
-.song img{width:50px;height:50px;border-radius:6px;object-fit:cover;vertical-align:middle;margin-right:10px;}
-.playlist-tag{background:#1DB954;color:black;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:bold;}
-.msg{padding:10px;border-radius:8px;margin:10px 0;text-align:center;font-weight:bold;}
-.success{background:#1DB954;color:black;}
-.error{background:#e74c3c;}
-#loginBox{background:#1e1e1e;padding:20px;border-radius:12px;margin-top:20px;}
-h2{color:#1DB954;border-bottom:1px solid #2a2a2a;padding-bottom:8px;}
-.filter-btn{width:auto;padding:6px 14px;margin:4px;background:#2a2a2a;border-radius:20px;font-size:13px;}
-.filter-btn.active{background:#1DB954;color:black;}
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0f0f0f; color: #fff; font-family: 'Segoe UI', sans-serif; min-height: 100vh; }
+  .header { background: #1a1a1a; padding: 16px 20px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #333; }
+  .header h1 { font-size: 20px; } .header span { color: #1DB954; }
+  .back-btn { background: none; border: none; color: #1DB954; font-size: 22px; cursor: pointer; padding: 0 8px; }
+  .page { display: none; padding: 24px 20px; max-width: 600px; margin: 0 auto; }
+  .page.active { display: block; }
+  .card { background: #1a1a1a; border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+  .card h2 { font-size: 16px; color: #aaa; margin-bottom: 16px; }
+  input, select { width: 100%; padding: 12px 14px; background: #2a2a2a; border: 1px solid #444; border-radius: 8px; color: #fff; font-size: 15px; margin-bottom: 12px; }
+  input:focus, select:focus { outline: none; border-color: #1DB954; }
+  .btn { width: 100%; padding: 14px; border: none; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; }
+  .btn-green { background: #1DB954; color: #000; }
+  .btn-outline { background: transparent; border: 1px solid #1DB954; color: #1DB954; margin-top: 8px; }
+  .btn:active { opacity: 0.8; }
+  .list-item { background: #2a2a2a; border-radius: 10px; padding: 14px 16px; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; }
+  .list-item:active { background: #333; }
+  .list-item .name { font-size: 16px; font-weight: 600; }
+  .list-item .sub { font-size: 13px; color: #888; margin-top: 2px; }
+  .list-item .arrow { color: #555; font-size: 18px; }
+  .list-thumb { width: 48px; height: 48px; border-radius: 8px; object-fit: cover; background: #333; margin-right: 12px; }
+  .section-title { font-size: 13px; color: #888; text-transform: uppercase; letter-spacing: 1px; margin: 20px 0 10px; }
+  .msg { text-align: center; padding: 20px; color: #888; }
+  .success { color: #1DB954; text-align: center; padding: 10px; font-size: 14px; }
+  .error { color: #e74c3c; text-align: center; padding: 10px; font-size: 14px; }
+  .loading { text-align: center; color: #888; padding: 20px; }
+  .lang-badge { background: #1DB954; color: #000; font-size: 11px; padding: 2px 8px; border-radius: 20px; font-weight: bold; }
+  .divider { border: none; border-top: 1px solid #333; margin: 16px 0; }
+  .song-item { background: #2a2a2a; border-radius: 8px; padding: 12px; margin-bottom: 8px; }
+  .song-item .title { font-weight: 600; font-size: 15px; }
+  .song-item .artist { color: #888; font-size: 13px; margin-top: 2px; }
+  .token-logo { text-align: center; padding: 30px 0 20px; font-size: 36px; }
+  .token-title { text-align: center; font-size: 22px; font-weight: bold; margin-bottom: 6px; }
+  .token-sub { text-align: center; color: #888; font-size: 14px; margin-bottom: 24px; }
 </style>
 </head>
 <body>
-<h1>🎵 OtaPlay Admin</h1>
 
-<div id="loginBox">
-  <h3>🔑 GitHub Token Enter Karo</h3>
-  <input type="password" id="tokenInput" placeholder="ghp_xxxxxxxxxxxxxxx"/>
-  <button onclick="saveToken()">🔓 Login Karo</button>
+<div class="header">
+  <button class="back-btn" id="backBtn" onclick="goBack()" style="display:none">&#8592;</button>
+  <h1>Ota<span>Play</span> Admin</h1>
 </div>
 
-<div id="mainPanel" style="display:none">
-  <button onclick="logout()" style="background:#333;margin-bottom:15px;">🚪 Logout</button>
+<!-- PAGE 1: TOKEN -->
+<div class="page active" id="page-token">
+  <div class="token-logo">🔑</div>
+  <div class="token-title">Admin Login</div>
+  <div class="token-sub">Apna GitHub Personal Access Token daalo</div>
+  <div class="card">
+    <input type="password" id="tokenInput" placeholder="GitHub Token (ghp_...)">
+    <button class="btn btn-green" onclick="submitToken()">Login</button>
+    <div id="tokenMsg"></div>
+  </div>
+</div>
 
-  <h2>➕ Naya Gana Add Karo</h2>
-  <input id="title" placeholder="🎵 Gane ka naam *"/>
-  <input id="audiourl" placeholder="🔊 Audio URL (Cloudinary MP3) *"/>
-  <input id="imageurl" placeholder="🖼️ Image URL (Internet se) *"/>
-  <input id="playlist" placeholder="📁 Playlist naam (jaise: Desi Hits) *" list="playlistSuggestions"/>
-  <datalist id="playlistSuggestions"></datalist>
-  <button onclick="addSong()" id="addBtn">➕ Gana Add Karo</button>
-  <div id="msg"></div>
+<!-- PAGE 2: LANGUAGE LIST -->
+<div class="page" id="page-languages">
+  <div class="section-title">Languages</div>
+  <div id="langList"></div>
+  <button class="btn btn-outline" onclick="showAddLang()">+ Add New Language</button>
+  <div id="addLangForm" style="display:none; margin-top:16px;">
+    <div class="card">
+      <h2>New Language</h2>
+      <input type="text" id="newLangName" placeholder="Language name (e.g. Punjabi)">
+      <button class="btn btn-green" onclick="addLanguage()">Create Language</button>
+    </div>
+  </div>
+</div>
 
-  <h2>📋 Songs List</h2>
-  <div id="filterBtns" style="margin-bottom:10px;"></div>
-  <div id="list"></div>
+<!-- PAGE 3: PLAYLIST LIST (per language) -->
+<div class="page" id="page-playlists">
+  <div class="section-title" id="plPageLangLabel"></div>
+  <div id="playlistList"></div>
+  <button class="btn btn-outline" onclick="showAddPlaylist()">+ Add New Playlist</button>
+  <div id="addPlaylistForm" style="display:none; margin-top:16px;">
+    <div class="card">
+      <h2>New Playlist</h2>
+      <input type="text" id="newPlName" placeholder="Playlist name">
+      <input type="url" id="newPlImage" placeholder="Cover image URL (optional)">
+      <button class="btn btn-green" onclick="createPlaylist()">Create Playlist</button>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE 4: SONGS IN PLAYLIST -->
+<div class="page" id="page-songs">
+  <div class="section-title" id="songsPageLabel"></div>
+  <div id="songsList"></div>
+  <hr class="divider">
+  <div class="card">
+    <h2>Add New Song</h2>
+    <input type="text" id="songTitle" placeholder="Song Title *">
+    <input type="text" id="songArtist" placeholder="Artist Name *">
+    <input type="url" id="songAudio" placeholder="Audio URL (MP3/Cloudinary) *">
+    <input type="url" id="songImage" placeholder="Cover Image URL *">
+    <button class="btn btn-green" onclick="addSong()">Add Song</button>
+    <div id="addSongMsg"></div>
+  </div>
 </div>
 
 <script>
-const REPO = 'ajaydevota/otaplay-admin';
-const FILE = 'songs.json';
-let songs = [];
-let fileSha = '';
-let GITHUB_TOKEN = '';
-let activeFilter = 'All';
+const REPO = "ajaydevota/otaplay-admin";
+const FILE_PATH = "songs.json";
+const API_BASE = "https://api.github.com";
 
-function saveToken() {
-    const t = document.getElementById('tokenInput').value.trim();
-    if(!t){alert('Token daalo!');return;}
-    GITHUB_TOKEN = t;
-    localStorage.setItem('ota_token', t);
-    showPanel();
+let token = "";
+let allSongs = [];
+let fileSha = "";
+let currentLang = "";
+let currentPlaylist = "";
+let pageHistory = [];
+
+function goBack() {
+  if (pageHistory.length > 0) {
+    const prev = pageHistory.pop();
+    showPage(prev, false);
+  }
 }
 
-function logout() {
-    localStorage.removeItem('ota_token');
-    GITHUB_TOKEN = '';
-    document.getElementById('mainPanel').style.display = 'none';
-    document.getElementById('loginBox').style.display = 'block';
+function showPage(pageId, addHistory = true) {
+  if (addHistory) {
+    const current = document.querySelector('.page.active');
+    if (current) pageHistory.push(current.id);
+  }
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById(pageId).classList.add('active');
+  document.getElementById('backBtn').style.display = pageHistory.length > 0 ? 'block' : 'none';
 }
 
-function showPanel() {
-    document.getElementById('loginBox').style.display = 'none';
-    document.getElementById('mainPanel').style.display = 'block';
-    loadSongs();
+async function submitToken() {
+  token = document.getElementById('tokenInput').value.trim();
+  if (!token) { showMsg('tokenMsg', 'Token daalo!', 'error'); return; }
+  showMsg('tokenMsg', 'Connecting...', '');
+  try {
+    await loadSongs();
+    showPage('page-languages');
+    renderLanguages();
+  } catch(e) {
+    showMsg('tokenMsg', 'Token galat hai ya network error!', 'error');
+  }
 }
 
 async function loadSongs() {
-    try {
-        const res = await fetch(`https://api.github.com/repos/${REPO}/contents/${FILE}`, {
-            headers: {'Authorization': `token ${GITHUB_TOKEN}`}
-        });
-        const data = await res.json();
-        fileSha = data.sha;
-        songs = JSON.parse(atob(data.content));
-        render();
-    } catch(e) {
-        showMsg('Songs load nahi hui: ' + e.message, 'error');
-    }
+  const res = await fetch(`${API_BASE}/repos/${REPO}/contents/${FILE_PATH}`, {
+    headers: { Authorization: `token ${token}`, Accept: 'application/vnd.github.v3+json' }
+  });
+  if (!res.ok) throw new Error('Failed');
+  const data = await res.json();
+  fileSha = data.sha;
+  allSongs = JSON.parse(atob(data.content.replace(/\n/g, '')));
 }
 
-async function saveToGitHub() {
-    const content = btoa(unescape(encodeURIComponent(JSON.stringify(songs, null, 2))));
-    const res = await fetch(`https://api.github.com/repos/${REPO}/contents/${FILE}`, {
-        method: 'PUT',
-        headers: {
-            'Authorization': `token ${GITHUB_TOKEN}`,
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            message: 'Songs update kiya',
-            content: content,
-            sha: fileSha
-        })
-    });
-    const data = await res.json();
-    fileSha = data.content.sha;
+async function saveSongs() {
+  const content = btoa(unescape(encodeURIComponent(JSON.stringify(allSongs, null, 2))));
+  const res = await fetch(`${API_BASE}/repos/${REPO}/contents/${FILE_PATH}`, {
+    method: 'PUT',
+    headers: { Authorization: `token ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message: 'Update songs', content, sha: fileSha })
+  });
+  if (!res.ok) throw new Error('Save failed');
+  const data = await res.json();
+  fileSha = data.content.sha;
+}
+
+function renderLanguages() {
+  const langs = [...new Set(allSongs.map(s => s.language || 'Other'))];
+  const el = document.getElementById('langList');
+  if (langs.length === 0) { el.innerHTML = '<div class="msg">Koi language nahi hai. Naya banao!</div>'; return; }
+  el.innerHTML = langs.map(lang => {
+    const count = allSongs.filter(s => (s.language || 'Other') === lang).length;
+    return `<div class="list-item" onclick="openLanguage('${escHtml(lang)}')">
+      <div>
+        <div class="name">${escHtml(lang)}</div>
+        <div class="sub">${count} songs</div>
+      </div>
+      <span class="arrow">›</span>
+    </div>`;
+  }).join('');
+}
+
+function openLanguage(lang) {
+  currentLang = lang;
+  document.getElementById('plPageLangLabel').textContent = lang + ' — Playlists';
+  renderPlaylists(lang);
+  showPage('page-playlists');
+}
+
+function renderPlaylists(lang) {
+  const songs = allSongs.filter(s => (s.language || 'Other') === lang);
+  const playlists = [...new Set(songs.map(s => s.playlist))];
+  const el = document.getElementById('playlistList');
+  if (playlists.length === 0) { el.innerHTML = '<div class="msg">Koi playlist nahi. Naya banao!</div>'; return; }
+  el.innerHTML = playlists.map(pl => {
+    const plSongs = songs.filter(s => s.playlist === pl);
+    const img = plSongs[0]?.imageurl || '';
+    return `<div class="list-item" onclick="openPlaylist('${escHtml(pl)}')">
+      ${img ? `<img class="list-thumb" src="${escHtml(img)}" onerror="this.style.display='none'">` : '<div class="list-thumb"></div>'}
+      <div style="flex:1">
+        <div class="name">${escHtml(pl)}</div>
+        <div class="sub">${plSongs.length} songs</div>
+      </div>
+      <span class="arrow">›</span>
+    </div>`;
+  }).join('');
+}
+
+function openPlaylist(pl) {
+  currentPlaylist = pl;
+  document.getElementById('songsPageLabel').textContent = currentLang + ' › ' + pl;
+  renderSongs(pl);
+  showPage('page-songs');
+}
+
+function renderSongs(pl) {
+  const songs = allSongs.filter(s => s.playlist === pl && (s.language || 'Other') === currentLang);
+  const el = document.getElementById('songsList');
+  if (songs.length === 0) { el.innerHTML = '<div class="msg">Koi song nahi. Neeche se add karo!</div>'; return; }
+  el.innerHTML = songs.map((s, i) => `
+    <div class="song-item">
+      <div class="title">${escHtml(s.title)}</div>
+      <div class="artist">${escHtml(s.artist || '')}</div>
+    </div>`).join('');
+}
+
+function showAddLang() {
+  const f = document.getElementById('addLangForm');
+  f.style.display = f.style.display === 'none' ? 'block' : 'none';
+}
+
+function addLanguage() {
+  const name = document.getElementById('newLangName').value.trim();
+  if (!name) return alert('Language name daalo!');
+  const exists = allSongs.some(s => (s.language || 'Other') === name);
+  if (exists) return alert('Yeh language already hai!');
+  // Language is created implicitly when first playlist+song is added
+  // For now just open it
+  currentLang = name;
+  document.getElementById('plPageLangLabel').textContent = name + ' — Playlists';
+  document.getElementById('playlistList').innerHTML = '<div class="msg">Koi playlist nahi. Naya banao!</div>';
+  document.getElementById('addLangForm').style.display = 'none';
+  document.getElementById('newLangName').value = '';
+  showPage('page-playlists');
+}
+
+function showAddPlaylist() {
+  const f = document.getElementById('addPlaylistForm');
+  f.style.display = f.style.display === 'none' ? 'block' : 'none';
+}
+
+function createPlaylist() {
+  const name = document.getElementById('newPlName').value.trim();
+  const img = document.getElementById('newPlImage').value.trim();
+  if (!name) return alert('Playlist name daalo!');
+  currentPlaylist = name;
+  document.getElementById('songsPageLabel').textContent = currentLang + ' › ' + name;
+  document.getElementById('songsList').innerHTML = '<div class="msg">Koi song nahi. Neeche se add karo!</div>';
+  document.getElementById('addPlaylistForm').style.display = 'none';
+  document.getElementById('newPlName').value = '';
+  document.getElementById('newPlImage').value = '';
+  // If cover image given, pre-fill image field
+  if (img) document.getElementById('songImage').value = img;
+  showPage('page-songs');
 }
 
 async function addSong() {
-    const title = document.getElementById('title').value.trim();
-    const audiourl = document.getElementById('audiourl').value.trim();
-    const imageurl = document.getElementById('imageurl').value.trim();
-    const playlist = document.getElementById('playlist').value.trim();
-
-    if(!title || !audiourl || !imageurl || !playlist){
-        alert('Sab fields bharo!'); return;
-    }
-
-    const btn = document.getElementById('addBtn');
-    btn.disabled = true;
-    btn.textContent = 'Save ho raha hai...';
-
-    try {
-        songs.push({title, audiourl, imageurl, playlist});
-        await saveToGitHub();
-        document.getElementById('title').value = '';
-        document.getElementById('audiourl').value = '';
-        document.getElementById('imageurl').value = '';
-        document.getElementById('playlist').value = '';
-        render();
-        showMsg('✅ Gana add ho gaya!', 'success');
-    } catch(e) {
-        songs.pop();
-        showMsg('❌ Error: ' + e.message, 'error');
-    }
-    btn.disabled = false;
-    btn.textContent = '➕ Gana Add Karo';
+  const title = document.getElementById('songTitle').value.trim();
+  const artist = document.getElementById('songArtist').value.trim();
+  const audiourl = document.getElementById('songAudio').value.trim();
+  const imageurl = document.getElementById('songImage').value.trim();
+  if (!title || !artist || !audiourl || !imageurl) {
+    showMsg('addSongMsg', 'Saare fields bharo!', 'error'); return;
+  }
+  showMsg('addSongMsg', 'Saving...', '');
+  try {
+    allSongs.push({ title, artist, audiourl, imageurl, playlist: currentPlaylist, language: currentLang });
+    await saveSongs();
+    showMsg('addSongMsg', '✓ Song add ho gaya!', 'success');
+    document.getElementById('songTitle').value = '';
+    document.getElementById('songArtist').value = '';
+    document.getElementById('songAudio').value = '';
+    document.getElementById('songImage').value = '';
+    renderSongs(currentPlaylist);
+  } catch(e) {
+    allSongs.pop();
+    showMsg('addSongMsg', 'Error! Dobara try karo.', 'error');
+  }
 }
 
-async function deleteSong(i) {
-    if(!confirm('Delete karna hai?')) return;
-    const removed = songs.splice(i, 1);
-    try {
-        await saveToGitHub();
-        render();
-        showMsg('✅ Delete ho gaya!', 'success');
-    } catch(e) {
-        songs.splice(i, 0, removed[0]);
-        showMsg('❌ Error: ' + e.message, 'error');
-    }
+function showMsg(id, msg, type) {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.className = type;
 }
 
-function getPlaylists() {
-    return ['All', ...new Set(songs.map(s => s.playlist).filter(Boolean))];
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
-
-function render() {
-    // Playlist suggestions
-    const playlists = getPlaylists().filter(p => p !== 'All');
-    const dl = document.getElementById('playlistSuggestions');
-    dl.innerHTML = playlists.map(p => `<option value="${p}">`).join('');
-
-    // Filter buttons
-    const filterDiv = document.getElementById('filterBtns');
-    filterDiv.innerHTML = getPlaylists().map(p =>
-        `<button class="filter-btn ${p === activeFilter ? 'active' : ''}" onclick="setFilter('${p}')">${p}</button>`
-    ).join('');
-
-    // Songs list
-    const filtered = activeFilter === 'All' ? songs : songs.filter(s => s.playlist === activeFilter);
-    const list = document.getElementById('list');
-
-    if(filtered.length === 0){
-        list.innerHTML = '<p style="color:#666">Koi gana nahi hai</p>';
-        return;
-    }
-
-    list.innerHTML = filtered.map((s, i) => {
-        const realIndex = songs.indexOf(s);
-        return `
-        <div class="song">
-            <img src="${s.imageurl}" onerror="this.src='https://via.placeholder.com/50x50/1DB954/000?text=🎵'" />
-            <span class="playlist-tag">${s.playlist || 'No Playlist'}</span>
-            <br><br>
-            <b>${s.title}</b><br>
-            <small style="color:#888;word-break:break-all;">${s.audiourl.substring(0,50)}...</small><br>
-            <button onclick="deleteSong(${realIndex})" style="background:red;width:auto;margin-top:8px;">🗑 Delete</button>
-        </div>`;
-    }).join('');
-}
-
-function setFilter(name) {
-    activeFilter = name;
-    render();
-}
-
-function showMsg(msg, type) {
-    const el = document.getElementById('msg');
-    el.className = 'msg ' + type;
-    el.textContent = msg;
-    setTimeout(() => el.textContent = '', 3000);
-}
-
-const saved = localStorage.getItem('ota_token');
-if(saved){GITHUB_TOKEN = saved; showPanel();}
 </script>
 </body>
 </html>
