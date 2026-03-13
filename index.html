@@ -3,12 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>OtaPlay Admin</title>
+<title>OtaAdmin</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { background: #0f0f0f; color: #fff; font-family: 'Segoe UI', sans-serif; min-height: 100vh; }
   .header { background: #1a1a1a; padding: 16px 20px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #333; }
-  .header h1 { font-size: 20px; } .header span { color: #1DB954; }
+  .header h1 { font-size: 20px; }
+  .header .red { color: #e74c3c; }
   .back-btn { background: none; border: none; color: #1DB954; font-size: 22px; cursor: pointer; padding: 0 8px; }
   .page { display: none; padding: 24px 20px; max-width: 600px; margin: 0 auto; }
   .page.active { display: block; }
@@ -30,12 +31,21 @@
   .msg { text-align: center; padding: 20px; color: #888; }
   .success { color: #1DB954; text-align: center; padding: 10px; font-size: 14px; }
   .error { color: #e74c3c; text-align: center; padding: 10px; font-size: 14px; }
-  .loading { text-align: center; color: #888; padding: 20px; }
-  .lang-badge { background: #1DB954; color: #000; font-size: 11px; padding: 2px 8px; border-radius: 20px; font-weight: bold; }
   .divider { border: none; border-top: 1px solid #333; margin: 16px 0; }
   .song-item { background: #2a2a2a; border-radius: 8px; padding: 12px; margin-bottom: 8px; }
-  .song-item .title { font-weight: 600; font-size: 15px; }
-  .song-item .artist { color: #888; font-size: 13px; margin-top: 2px; }
+  .song-item-top { display: flex; align-items: center; justify-content: space-between; }
+  .song-info .title { font-weight: 600; font-size: 15px; }
+  .song-info .artist { color: #888; font-size: 13px; margin-top: 2px; }
+  .song-actions { display: flex; gap: 8px; margin-left: 10px; }
+  .btn-edit { background: #2d6a4f; color: #fff; border: none; border-radius: 6px; padding: 6px 12px; font-size: 13px; cursor: pointer; font-weight: 600; }
+  .btn-delete { background: #7b2d2d; color: #fff; border: none; border-radius: 6px; padding: 6px 12px; font-size: 13px; cursor: pointer; font-weight: 600; }
+  .btn-edit:active { background: #1DB954; }
+  .btn-delete:active { background: #e74c3c; }
+  .edit-form { margin-top: 12px; border-top: 1px solid #444; padding-top: 12px; display: none; }
+  .edit-form input { margin-bottom: 8px; font-size: 13px; padding: 10px 12px; }
+  .edit-btns { display: flex; gap: 8px; }
+  .btn-save { flex: 1; background: #1DB954; color: #000; border: none; border-radius: 8px; padding: 10px; font-weight: bold; cursor: pointer; font-size: 14px; }
+  .btn-cancel { flex: 1; background: #333; color: #fff; border: none; border-radius: 8px; padding: 10px; font-weight: bold; cursor: pointer; font-size: 14px; }
   .token-logo { text-align: center; padding: 30px 0 20px; font-size: 36px; }
   .token-title { text-align: center; font-size: 22px; font-weight: bold; margin-bottom: 6px; }
   .token-sub { text-align: center; color: #888; font-size: 14px; margin-bottom: 24px; }
@@ -45,7 +55,7 @@
 
 <div class="header">
   <button class="back-btn" id="backBtn" onclick="goBack()" style="display:none">&#8592;</button>
-  <h1>Ota<span>Play</span> Admin</h1>
+  <h1>Ota<span class="red">Admin</span></h1>
 </div>
 
 <!-- PAGE 1: TOKEN -->
@@ -74,7 +84,7 @@
   </div>
 </div>
 
-<!-- PAGE 3: PLAYLIST LIST (per language) -->
+<!-- PAGE 3: PLAYLIST LIST -->
 <div class="page" id="page-playlists">
   <div class="section-title" id="plPageLangLabel"></div>
   <div id="playlistList"></div>
@@ -222,11 +232,77 @@ function renderSongs(pl) {
   const songs = allSongs.filter(s => s.playlist === pl && (s.language || 'Other') === currentLang);
   const el = document.getElementById('songsList');
   if (songs.length === 0) { el.innerHTML = '<div class="msg">Koi song nahi. Neeche se add karo!</div>'; return; }
-  el.innerHTML = songs.map((s, i) => `
-    <div class="song-item">
-      <div class="title">${escHtml(s.title)}</div>
-      <div class="artist">${escHtml(s.artist || '')}</div>
-    </div>`).join('');
+  el.innerHTML = songs.map((s) => {
+    const realIdx = allSongs.findIndex(x =>
+      x.title === s.title && x.artist === s.artist &&
+      x.playlist === s.playlist && x.language === s.language &&
+      x.audiourl === s.audiourl
+    );
+    return `
+    <div class="song-item" id="song-card-${realIdx}">
+      <div class="song-item-top">
+        <div class="song-info">
+          <div class="title">${escHtml(s.title)}</div>
+          <div class="artist">${escHtml(s.artist || '')}</div>
+        </div>
+        <div class="song-actions">
+          <button class="btn-edit" onclick="toggleEdit(${realIdx})">✏️ Edit</button>
+          <button class="btn-delete" onclick="deleteSong(${realIdx})">🗑️ Delete</button>
+        </div>
+      </div>
+      <div class="edit-form" id="edit-form-${realIdx}">
+        <input type="text" id="edit-title-${realIdx}" value="${escAttr(s.title)}" placeholder="Song Title">
+        <input type="text" id="edit-artist-${realIdx}" value="${escAttr(s.artist || '')}" placeholder="Artist Name">
+        <input type="url" id="edit-audio-${realIdx}" value="${escAttr(s.audiourl || '')}" placeholder="Audio URL">
+        <input type="url" id="edit-image-${realIdx}" value="${escAttr(s.imageurl || '')}" placeholder="Cover Image URL">
+        <div class="edit-btns">
+          <button class="btn-save" onclick="saveEdit(${realIdx})">💾 Save</button>
+          <button class="btn-cancel" onclick="toggleEdit(${realIdx})">Cancel</button>
+        </div>
+        <div id="edit-msg-${realIdx}" style="margin-top:8px;font-size:13px;text-align:center;"></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleEdit(idx) {
+  const form = document.getElementById(`edit-form-${idx}`);
+  form.style.display = form.style.display === 'block' ? 'none' : 'block';
+}
+
+async function saveEdit(idx) {
+  const title = document.getElementById(`edit-title-${idx}`).value.trim();
+  const artist = document.getElementById(`edit-artist-${idx}`).value.trim();
+  const audiourl = document.getElementById(`edit-audio-${idx}`).value.trim();
+  const imageurl = document.getElementById(`edit-image-${idx}`).value.trim();
+  const msgEl = document.getElementById(`edit-msg-${idx}`);
+  if (!title || !artist || !audiourl || !imageurl) {
+    msgEl.textContent = 'Saare fields bharo!'; msgEl.style.color = '#e74c3c'; return;
+  }
+  msgEl.textContent = 'Saving...'; msgEl.style.color = '#aaa';
+  const oldSong = { ...allSongs[idx] };
+  allSongs[idx] = { ...allSongs[idx], title, artist, audiourl, imageurl };
+  try {
+    await saveSongs();
+    msgEl.textContent = '✓ Saved!'; msgEl.style.color = '#1DB954';
+    setTimeout(() => { toggleEdit(idx); renderSongs(currentPlaylist); }, 800);
+  } catch(e) {
+    allSongs[idx] = oldSong;
+    msgEl.textContent = 'Error! Dobara try karo.'; msgEl.style.color = '#e74c3c';
+  }
+}
+
+async function deleteSong(idx) {
+  const song = allSongs[idx];
+  if (!confirm(`"${song.title}" delete karna chahte ho?`)) return;
+  const removed = allSongs.splice(idx, 1);
+  try {
+    await saveSongs();
+    renderSongs(currentPlaylist);
+  } catch(e) {
+    allSongs.splice(idx, 0, removed[0]);
+    alert('Delete fail hua! Dobara try karo.');
+  }
 }
 
 function showAddLang() {
@@ -237,10 +313,6 @@ function showAddLang() {
 function addLanguage() {
   const name = document.getElementById('newLangName').value.trim();
   if (!name) return alert('Language name daalo!');
-  const exists = allSongs.some(s => (s.language || 'Other') === name);
-  if (exists) return alert('Yeh language already hai!');
-  // Language is created implicitly when first playlist+song is added
-  // For now just open it
   currentLang = name;
   document.getElementById('plPageLangLabel').textContent = name + ' — Playlists';
   document.getElementById('playlistList').innerHTML = '<div class="msg">Koi playlist nahi. Naya banao!</div>';
@@ -264,7 +336,6 @@ function createPlaylist() {
   document.getElementById('addPlaylistForm').style.display = 'none';
   document.getElementById('newPlName').value = '';
   document.getElementById('newPlImage').value = '';
-  // If cover image given, pre-fill image field
   if (img) document.getElementById('songImage').value = img;
   showPage('page-songs');
 }
@@ -301,6 +372,10 @@ function showMsg(id, msg, type) {
 
 function escHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function escAttr(s) {
+  return String(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 </script>
 </body>
