@@ -39,13 +39,12 @@ jobs:
       # ── 3. Download audio ─────────────────────────────────────────────────
       - name: ⬇️ Download Audio from YouTube
         run: |
-          yt-dlp \
-            -x \
-            --audio-format mp3 \
-            --audio-quality 0 \
-            -o "song.%(ext)s" \
-            "${{ github.event.inputs.youtube_url }}"
-          ls -lh song.mp3
+           yt-dlp \
+           -x \
+           --audio-format mp3 \
+           --audio-quality 0 \
+           --extractor-args "youtube:player_client=android" \
+           -o "song.%(ext)s" \
 
       # ── 4. Extract Video ID & Thumbnail URL ───────────────────────────────
       - name: 🖼️ Get YouTube Thumbnail URL
