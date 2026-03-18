@@ -1,0 +1,185 @@
+name: 🎵 OtaPlay - Add Song
+
+on:
+  workflow_dispatch:
+    inputs:
+      youtube_url:
+        description: 'YouTube URL (e.g. https://youtu.be/xxxxx)'
+        required: true
+      song_name:
+        description: 'Song Ka Naam'
+        required: true
+      artist:
+        description: 'Artist / Singer'
+        required: true
+      language:
+        description: 'Language (Hindi / Punjabi / English etc.)'
+        required: true
+      playlist:
+        description: 'Playlist Name'
+        required: true
+
+jobs:
+  add-song:
+    runs-on: ubuntu-latest
+
+    steps:
+
+      # ── 1. Repo checkout ──────────────────────────────────────────────────
+      - name: 📥 Checkout Repo
+        uses: actions/checkout@v3
+
+      # ── 2. Tools install ──────────────────────────────────────────────────
+      - name: 🛠️ Install yt-dlp & ffmpeg
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y ffmpeg
+          pip install -q yt-dlp
+
+      # ── 3. Download audio ─────────────────────────────────────────────────
+      - name: ⬇️ Download Audio from YouTube
+        run: |
+          yt-dlp \
+            -x \
+            --audio-format mp3 \
+            --audio-quality 0 \
+            -o "song.%(ext)s" \
+            "${{ github.event.inputs.youtube_url }}"
+          ls -lh song.mp3
+
+      # ── 4. Extract Video ID & Thumbnail URL ───────────────────────────────
+      - name: 🖼️ Get YouTube Thumbnail URL
+        id: thumbnail
+        run: |
+          URL="${{ github.event.inputs.youtube_url }}"
+
+          # youtu.be short link
+          if echo "$URL" | grep -q "youtu.be"; then
+            VIDEO_ID=$(echo "$URL" | grep -oP '(?<=youtu\.be/)[^?&]+')
+          else
+            VIDEO_ID=$(echo "$URL" | grep -oP '(?<=v=)[^&]+')
+          fi
+
+          echo "video_id=$VIDEO_ID" >> $GITHUB_OUTPUT
+          echo "thumb_url=https://img.youtube.com/vi/$VIDEO_ID/maxresdefault.jpg" >> $GITHUB_OUTPUT
+          echo "✅ Video ID: $VIDEO_ID"
+
+      # ── 5. Upload MP3 to Cloudinary ───────────────────────────────────────
+      - name: ☁️ Upload MP3 to Cloudinary
+        id: upload_mp3
+        run: |
+          RESPONSE=$(curl -s -X POST \
+            "https://api.cloudinary.com/v1_1/${{ secrets.CLOUDINARY_CLOUD_NAME }}/video/upload" \
+            -F "file=@song.mp3" \
+            -F "upload_preset=${{ secrets.CLOUDINARY_UPLOAD_PRESET }}" \
+            -F "resource_type=video")
+
+          echo "Cloudinary Response: $RESPONSE"
+
+          MP3_URL=$(echo "$RESPONSE" | python3 -c "import sys,json; data=json.load(sys.stdin); print(data['secure_url'])")
+          echo "mp3_url=$MP3_URL" >> $GITHUB_OUTPUT
+          echo "✅ MP3 Uploaded: $MP3_URL"
+
+      # ── 6. Upload Thumbnail to Cloudinary ─────────────────────────────────
+      - name: 🖼️ Upload Thumbnail to Cloudinary
+        id: upload_thumb
+        run: |
+          RESPONSE=$(curl -s -X POST \
+            "https://api.cloudinary.com/v1_1/${{ secrets.CLOUDINARY_CLOUD_NAME }}/image/upload" \
+            -F "file=${{ steps.thumbnail.outputs.thumb_url }}" \
+            -F "upload_preset=${{ secrets.CLOUDINARY_UPLOAD_PRESET }}")
+
+          echo "Cloudinary Response: $RESPONSE"
+
+          IMG_URL=$(echo "$RESPONSE" | python3 -c "import sys,json; data=json.load(sys.stdin); print(data['secure_url'])")
+          echo "img_url=$IMG_URL" >> $GITHUB_OUTPUT
+          echo "✅ Thumbnail Uploaded: $IMG_URL"
+
+      # ── 7. Update songs.json ──────────────────────────────────────────────
+      - name: 📝 Update songs.json
+        env:
+          SONG_NAME:  ${{ github.event.inputs.song_name }}
+          ARTIST:     ${{ github.event.inputs.artist }}
+          LANGUAGE:   ${{ github.event.inputs.language }}
+          PLAYLIST:   ${{ github.event.inputs.playlist }}
+          MP3_URL:    ${{ steps.upload_mp3.outputs.mp3_url }}
+          IMG_URL:    ${{ steps.upload_thumb.outputs.img_url }}
+        run: |
+          python3 << 'EOF'
+          import json, os
+
+          path = "songs.json"
+
+          try:
+              with open(path, "r", encoding="utf-8") as f:
+                  songs = json.load(f)
+          except Exception:
+              songs = []
+
+          new_song = {
+              "name":     os.environ["SONG_NAME"],
+              "artist":   os.environ["ARTIST"],
+              "language": os.environ["LANGUAGE"],
+              "playlist": os.environ["PLAYLIST"],
+              "url":      os.environ["MP3_URL"],
+              "imageurl": os.environ["IMG_URL"]
+          }
+
+          songs.append(new_song)
+
+          with open(path, "w", encoding="utf-8") as f:
+              json.dump(songs, f, indent=2, ensure_ascii=False)
+
+          print(f"✅ Song added: {new_song['name']} by {new_song['artist']}")
+          print(f"📊 Total songs now: {len(songs)}")
+          EOF
+
+      # ── 8. Commit & Push ──────────────────────────────────────────────────
+      - name: 🚀 Commit & Push songs.json
+        run: |
+          git config user.name  "OtaPlay Bot 🤖"
+          git config user.email "bot@otaplay.com"
+          git add songs.json
+          git commit -m "🎵 Add: ${{ github.event.inputs.song_name }} — ${{ github.event.inputs.artist }}"
+          git push
+
+      # ── 9. Email Notification ─────────────────────────────────────────────
+      - name: 📧 Send Gmail Notification
+        uses: dawidd0811/github-action-send-mail@v3
+        with:
+          server_address:  smtp.gmail.com
+          server_port:     465
+          secure:          true
+          username:        ${{ secrets.GMAIL_USER }}
+          password:        ${{ secrets.GMAIL_APP_PASSWORD }}
+          subject:         "✅ OtaPlay — Song Added: ${{ github.event.inputs.song_name }}"
+          to:              ${{ secrets.GMAIL_USER }}
+          from:            "OtaPlay Bot 🎵"
+          html_body: |
+            <div style="font-family:Arial,sans-serif; max-width:500px; padding:20px; background:#1a1a2e; color:#eee; border-radius:12px;">
+              <h2 style="color:#1db954;">🎵 Naya Gana Add Ho Gaya!</h2>
+              <img src="${{ steps.upload_thumb.outputs.img_url }}" 
+                   style="width:100%; border-radius:8px; margin-bottom:16px;" />
+              <table style="width:100%; border-collapse:collapse;">
+                <tr><td style="padding:8px; color:#aaa;">🎵 Song</td>
+                    <td style="padding:8px; font-weight:bold;">${{ github.event.inputs.song_name }}</td></tr>
+                <tr style="background:#ffffff11;">
+                    <td style="padding:8px; color:#aaa;">🎤 Artist</td>
+                    <td style="padding:8px;">${{ github.event.inputs.artist }}</td></tr>
+                <tr><td style="padding:8px; color:#aaa;">🌐 Language</td>
+                    <td style="padding:8px;">${{ github.event.inputs.language }}</td></tr>
+                <tr style="background:#ffffff11;">
+                    <td style="padding:8px; color:#aaa;">📂 Playlist</td>
+                    <td style="padding:8px;">${{ github.event.inputs.playlist }}</td></tr>
+              </table>
+              <div style="margin-top:16px; padding:12px; background:#ffffff11; border-radius:8px; word-break:break-all;">
+                <p style="color:#aaa; margin:0 0 4px;">🔗 MP3 URL:</p>
+                <a href="${{ steps.upload_mp3.outputs.mp3_url }}" style="color:#1db954; font-size:12px;">
+                  ${{ steps.upload_mp3.outputs.mp3_url }}
+                </a>
+              </div>
+              <p style="margin-top:16px; color:#666; font-size:12px; text-align:center;">
+                OtaPlay Bot • GitHub Actions • Auto Generated
+              </p>
+            </div>
+            
